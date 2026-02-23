@@ -104,7 +104,7 @@ pip install -r requirements.txt
 ### Issue: Browser doesn't open automatically
 
 **Solution:**
-- Manually open browser and go to `http://127.0.0.1:5000`
+- Manually open browser and go to `http://127.0.0.1:5050`
 - Check if port 5000 is already in use
 
 ### Issue: "Chrome driver not found"
