@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Price Comparison</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header text-center">
+            <h1 class="display-4"><i class="fas fa-pills"></i> Medicine Price Comparison</h1>
+            <p class="lead">Find the best prices across Apollo, PharmEasy, and NetMeds</p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-container">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form id="searchForm">
+                        <div class="input-group input-group-lg">
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="medicineInput" 
+                                placeholder="Enter medicine name (e.g., Paracetamol, Dolo 650)"
+                                required
+                            >
+                            <button class="btn btn-primary" type="submit" id="searchBtn">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="text-center" style="display: none;">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Searching prices across pharmacies... This may take 20-30 seconds.</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="alert alert-danger" style="display: none;" role="alert">
+            <i class="fas fa-exclamation-circle"></i> <span id="errorText"></span>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Price Comparison Results for: <span id="medicineName"></span></h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-store"></i> Pharmacy</th>
+                                    <th><i class="fas fa-rupee-sign"></i> Price</th>
+                                    <th><i class="fas fa-link"></i> Link</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                                <!-- Results will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const medicineInput = document.getElementById('medicineInput');
+            const medicine = medicineInput.value.trim();
+            
+            if (!medicine) {
+                showError('Please enter a medicine name');
+                return;
+            }
+            
+            // Show loading, hide results and errors
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('searchBtn').disabled = true;
+            
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ medicine: medicine })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred');
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('searchBtn').disabled = false;
+            }
+        });
+        
+        function displayResults(data) {
+            document.getElementById('medicineName').textContent = data.medicine;
+            
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+            
+            data.results.forEach(result => {
+                const row = document.createElement('tr');
+                
+                // Apply green highlight to cheapest price
+                if (result.is_cheapest) {
+                    row.classList.add('table-success', 'cheapest-row');
+                }
+                
+                // Pharmacy name
+                const pharmacyCell = document.createElement('td');
+                pharmacyCell.innerHTML = `<strong>${result.pharmacy}</strong>`;
+                row.appendChild(pharmacyCell);
+                
+                // Price
+                const priceCell = document.createElement('td');
+                if (result.price !== null) {
+                    priceCell.innerHTML = `<span class="price-tag">₹${result.price}</span>`;
+                    if (result.is_cheapest) {
+                        priceCell.innerHTML += ' <span class="badge bg-success">Cheapest</span>';
+                    }
+                } else {
+                    priceCell.innerHTML = '<span class="text-danger">Price not found</span>';
+                }
+                row.appendChild(priceCell);
+                
+                // Link
+                const linkCell = document.createElement('td');
+                linkCell.innerHTML = `<a href="${result.link}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt"></i> Visit
+                </a>`;
+                row.appendChild(linkCell);
+                
+                tbody.appendChild(row);
+            });
+            
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+        
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
